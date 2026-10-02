@@ -3,7 +3,7 @@ import Link from 'next/link'
 const navigation = [
 	{ label: 'Features', href: '/#features' },
 	{ label: 'How it Works', href: '/#how-it-works' },
-	{ label: 'Dashboard', href: '/#dashboard' },
+	{ label: 'Dashboard', href: '/dashboard' },
 ]
 
 export function Navbar() {

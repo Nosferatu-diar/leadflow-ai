@@ -53,6 +53,24 @@ generation and the production build do not need an active database connection.
 Valid submissions return HTTP 503 if persistence fails; the form retains the
 entered values so they can be retried. Invalid input still returns HTTP 400.
 
+## AI lead analysis
+
+The dashboard's **Analyze with AI** button calls `POST /api/leads/[id]/analyze`.
+The server loads the existing lead, sends only its name, service, budget and
+message to the OpenAI Responses API, validates the structured result with Zod,
+and saves the analysis on that lead. Re-analyzing replaces only the AI fields.
+
+Add your actual OpenAI project API key to `OPENAI_API_KEY` in the root `.env`.
+Never commit it or prefix it with `NEXT_PUBLIC_`. Set `OPENAI_MODEL` if you want
+to choose another model that supports Responses structured output; leaving it
+empty uses `gpt-5.4-nano`. Restart the dev server after changing environment
+variables. The OpenAI project must have API billing/credits and model access.
+
+The request uses a 30-second timeout, no automatic retries, a 1000-token output
+limit, and bounded input fields. Requests without a configured key return an
+honest configuration error and do not save an analysis. No actual AI call was
+tested during initial implementation because the key was missing.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

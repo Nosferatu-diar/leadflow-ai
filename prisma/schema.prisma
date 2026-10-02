@@ -20,14 +20,25 @@ enum Service {
   Other
 }
 
+enum AIPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model Lead {
-  id            String        @id @default(cuid())
-  name          String
-  contactMethod ContactMethod
-  contact       String
-  service       Service
-  budget        String?
-  message       String?
-  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  id               String        @id @default(cuid())
+  name             String
+  contactMethod    ContactMethod
+  contact          String
+  service          Service
+  budget           String?
+  message          String?
+  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
+  aiSummary        String?
+  aiPriority       AIPriority?
+  aiIntent         String?
+  aiSuggestedReply String?
+  aiAnalyzedAt     DateTime?     @db.Timestamptz(3)
 }

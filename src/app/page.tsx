@@ -59,7 +59,7 @@ export default function Home() {
 				</p>
 				<div className='mt-9 flex flex-col justify-center gap-3 sm:flex-row'>
 					<ActionLink href='#lead-form'>Get Started</ActionLink>
-					<ActionLink href='#dashboard' variant='secondary'>
+					<ActionLink href='/dashboard' variant='secondary'>
 						View Dashboard
 					</ActionLink>
 				</div>
@@ -141,13 +141,12 @@ export default function Home() {
 						Your leads, in one place.
 					</h2>
 					<p className='mt-2 max-w-xl text-sm leading-6 text-zinc-400'>
-						The LeadFlow AI dashboard is coming soon. This is the first step
-						toward a simpler way to manage your leads.
+						View incoming requests and their details in the LeadFlow AI dashboard.
 					</p>
 				</div>
-				<span className='mt-5 inline-flex shrink-0 rounded-full border border-zinc-700 px-3 py-1 text-xs font-medium text-zinc-300 sm:mt-0'>
-					Coming soon
-				</span>
+				<div className='mt-5 shrink-0 sm:mt-0'>
+					<ActionLink href='/dashboard' variant='secondary'>View Dashboard</ActionLink>
+				</div>
 			</section>
 		</main>
 	)
