@@ -1,5 +1,6 @@
 import { ActionLink } from '@/components/ui/action-link'
 import { FeatureCard } from '@/components/ui/feature-card'
+import { LeadForm } from '@/components/leads/lead-form'
 
 const features = [
 	{
@@ -57,7 +58,7 @@ export default function Home() {
 					leads.
 				</p>
 				<div className='mt-9 flex flex-col justify-center gap-3 sm:flex-row'>
-					<ActionLink href='#how-it-works'>Get Started</ActionLink>
+					<ActionLink href='#lead-form'>Get Started</ActionLink>
 					<ActionLink href='#dashboard' variant='secondary'>
 						View Dashboard
 					</ActionLink>
@@ -117,6 +118,17 @@ export default function Home() {
 						</li>
 					))}
 				</ol>
+			</section>
+
+			<section
+				id='lead-form'
+				aria-labelledby='lead-form-heading'
+				className='scroll-mt-8 border-t border-zinc-800 py-16'
+			>
+				<p className='mb-3 text-xs font-medium uppercase tracking-widest text-teal-300'>Get Started</p>
+				<h2 id='lead-form-heading' className='text-2xl font-semibold tracking-tight sm:text-3xl'>Tell us what you have in mind.</h2>
+				<p className='mt-3 text-sm leading-6 text-zinc-400'>Share your details and the service you need.</p>
+				<LeadForm />
 			</section>
 
 			<section
