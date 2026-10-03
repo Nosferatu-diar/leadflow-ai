@@ -3,10 +3,13 @@ import { analyzeLead, InvalidAnalysisError, MissingOpenAIKeyError } from '@/lib/
 import { analysisSchema } from '@/lib/ai/analysis-schema'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { authorizeAdminMutation } from '@/lib/auth/request'
 
 export const runtime = 'nodejs'
 
-export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+	const denied = await authorizeAdminMutation(request)
+	if (denied) return denied
 	const { id } = await params
 	if (!z.string().min(1).max(100).safeParse(id).success) {
 		return Response.json({ success: false, message: 'Invalid lead ID.' }, { status: 400 })

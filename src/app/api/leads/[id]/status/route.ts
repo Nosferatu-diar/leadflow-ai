@@ -2,10 +2,13 @@ import { leadIdSchema, statusUpdateSchema } from '@/lib/lead-status'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+import { authorizeAdminMutation } from '@/lib/auth/request'
 
 export const runtime = 'nodejs'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+	const denied = await authorizeAdminMutation(request)
+	if (denied) return denied
 	const { id } = await params
 	if (!leadIdSchema.safeParse(id).success) {
 		return Response.json({ success: false, message: 'Invalid lead ID.' }, { status: 400 })

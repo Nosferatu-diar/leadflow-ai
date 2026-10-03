@@ -5,12 +5,14 @@ import type { Lead } from '@prisma/client'
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
 import { leadStatuses, statusLabels } from '@/lib/lead-status'
+import { requireAdmin } from '@/lib/auth/session'
 
 export const metadata: Metadata = {
 	title: 'Leads Dashboard | LeadFlow AI',
 }
 
 export default async function DashboardPage() {
+	await requireAdmin()
 	// Query fresh data at request time instead of during the production build.
 	await connection()
 
@@ -46,7 +48,12 @@ export default async function DashboardPage() {
 						{leads === null ? 'Lead count unavailable.' : `${leads.length} ${leads.length === 1 ? 'lead' : 'leads'} received · Newest first`}
 					</p>
 				</div>
-				<ActionLink href='/' variant='secondary'>Back to public website</ActionLink>
+				<div className='flex flex-wrap items-center gap-3'>
+					<ActionLink href='/' variant='secondary'>Back to public website</ActionLink>
+					<form action='/api/auth/logout' method='post'>
+						<button type='submit' className='min-h-12 rounded-lg border border-zinc-700 px-4 text-sm font-medium hover:bg-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300'>Logout</button>
+					</form>
+				</div>
 			</header>
 
 			{leads === null ? (

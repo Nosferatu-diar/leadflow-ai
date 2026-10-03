@@ -96,6 +96,54 @@ See the [Bot API documentation](https://core.telegram.org/bots/api#getupdates)
 for update retrieval and [sendMessage](https://core.telegram.org/bots/api#sendmessage)
 for delivery. This is a best-effort notification: there is no queue or retry job.
 
+## Single-admin authentication
+
+The public homepage and `POST /api/leads` remain public. `/dashboard`,
+`PATCH /api/leads/[id]/status` and `POST /api/leads/[id]/analyze` require a
+verified session. Every admin mutation checks the session on the server before
+database or OpenAI work. Login, logout and admin mutations require a matching
+`Origin` header and reject cross-site requests. Non-browser callers must send
+the application's origin explicitly. Reverse proxies must preserve the public
+request origin/protocol so this comparison matches the URL visitors use.
+
+Configure the three server-only variables in the root `.env` (or your deployment's
+secret settings). No password or secret has been generated for your actual admin:
+
+1. Set `ADMIN_EMAIL` to your admin email address.
+2. In your own interactive terminal, run `npm run auth:hash`. Enter and confirm
+   your chosen password; input is hidden and never echoed. Use at least 12
+   characters, no more than 72 UTF-8 bytes. Copy the printed
+   `ADMIN_PASSWORD_HASH='...'` line into `.env`, keeping its quotes so the hash's
+   dollar signs survive environment parsing. The command uses bcrypt cost 12;
+   configured hashes must have cost 10–14.
+3. Generate an independent random signing secret locally:
+
+   ```bash
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+   ```
+
+   Set the output as `AUTH_SECRET`. Do not commit either generated value, share
+   terminal screenshots, or put these variables behind `NEXT_PUBLIC_`.
+4. Restart the server and visit `/login`. Missing or invalid configuration keeps
+   admin access closed and displays a setup message; login returns HTTP 503.
+5. Sign in, check the dashboard, then use Logout. Production must be served over
+   HTTPS so the secure cookie can be sent.
+
+`bcryptjs` verifies the salted password hash; `jose` creates and verifies an
+HS256 JWT restricted to the application's issuer, audience and admin subject.
+The cookie expires after eight hours, is HttpOnly, SameSite=Lax and scoped to `/`.
+In production it is Secure and uses the `__Host-` prefix. It contains no password,
+password hash, admin email or signing secret. Password/hash/email changes or
+AUTH_SECRET rotation invalidate existing sessions. Logout expires the browser's
+cookie through a server POST and redirects to `/login`. Sessions are stateless:
+a previously copied token remains usable until expiry or credential/secret
+rotation; there is no database session registry or per-token revocation.
+
+Login errors do not identify which credential was wrong. A small per-process
+limit permits ten sign-in attempts per minute. This is not a shared limiter across
+serverless instances; configure the hosting platform's rate limiting before
+scaling. Authentication does not require a database migration or user table.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
