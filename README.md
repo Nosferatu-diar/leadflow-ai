@@ -71,6 +71,31 @@ limit, and bounded input fields. Requests without a configured key return an
 honest configuration error and do not save an analysis. No actual AI call was
 tested during initial implementation because the key was missing.
 
+## Telegram lead notifications
+
+After a lead is successfully inserted in PostgreSQL, the server attempts one
+plain-text Telegram notification using the native `fetch` API. The request has
+a five-second timeout and no automatic retries. Missing configuration or a
+Telegram failure is logged safely; the saved lead and HTTP 201 success response
+are preserved. Telegram credentials are never sent to the browser or stored on
+lead records. No OpenAI call is made during submission.
+
+To enable real delivery:
+
+1. Open the official `@BotFather` in Telegram and use `/newbot` to create a bot.
+2. Store its actual token as `TELEGRAM_BOT_TOKEN` in the root `.env`.
+3. Open your new bot from the business owner's Telegram account and press Start
+   or send `/start`. Bots cannot initiate a private conversation with a user.
+4. Call that bot's `getUpdates` method from a trusted local tool and find the
+   owner's `message.chat.id`. Set that value as `TELEGRAM_CHAT_ID` in `.env`.
+   Treat the token as a secret; do not paste it into source, screenshots, or logs.
+5. Restart `npm run dev`, submit a lead, and verify both the database row and the
+   Telegram message. Leaving either variable empty keeps submission working.
+
+See the [Bot API documentation](https://core.telegram.org/bots/api#getupdates)
+for update retrieval and [sendMessage](https://core.telegram.org/bots/api#sendmessage)
+for delivery. This is a best-effort notification: there is no queue or retry job.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
