@@ -28,6 +28,33 @@ export const leadSchema = z.object({
 		.trim()
 		.optional(),
 })
+	.superRefine((lead, context) => {
+		let valid: boolean
+		let message: string
+		switch (lead.contactMethod) {
+			case 'Email':
+				valid = z.email().safeParse(lead.contact).success
+				message = 'Enter a valid email address.'
+				break
+			case 'Phone': {
+				const digits = lead.contact.replace(/\D/g, '')
+				valid = /^\+?[0-9 ()-]+$/.test(lead.contact) && digits.length >= 7 && digits.length <= 15
+				message = 'Enter a valid phone number.'
+				break
+			}
+			case 'Telegram':
+				valid = /^(?:@[a-z][a-z0-9_]{4,31}|https:\/\/t\.me\/[a-z][a-z0-9_]{4,31}\/?)$/i.test(lead.contact)
+				message = 'Enter a valid Telegram username.'
+				break
+		}
+		if (!valid) context.addIssue({ code: 'custom', path: ['contact'], message })
+	})
+	.transform(lead => ({
+		...lead,
+		contact: lead.contactMethod === 'Telegram'
+			? `@${lead.contact.replace(/^(?:@|https:\/\/t\.me\/)/i, '').replace(/\/$/, '')}`
+			: lead.contact,
+	}))
 
 export type Lead = z.infer<typeof leadSchema>
 export type LeadFieldErrors = Partial<Record<keyof Lead, string[]>>

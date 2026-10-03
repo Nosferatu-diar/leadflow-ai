@@ -1,0 +1,7 @@
+BEGIN;
+
+CREATE TYPE "LeadStatus" AS ENUM ('NEW', 'CONTACTED', 'QUALIFIED', 'WON', 'LOST');
+
+ALTER TABLE "Lead" ADD COLUMN "status" "LeadStatus" NOT NULL DEFAULT 'NEW';
+
+COMMIT;

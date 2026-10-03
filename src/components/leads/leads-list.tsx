@@ -1,6 +1,7 @@
 import type { Lead } from '@prisma/client'
 import { LeadAnalysis } from './lead-analysis'
 import { Fragment } from 'react'
+import { LeadStatusControl } from './lead-status-control'
 
 const serviceLabels: Record<Lead['service'], string> = {
 	Website: 'Website',
@@ -36,7 +37,7 @@ export function LeadsList({ leads }: { leads: Lead[] }) {
 					<caption className='sr-only'>All submitted leads, newest first. Expand a name cell to view its message. Dates are in UTC.</caption>
 					<thead className='bg-zinc-900 text-xs text-zinc-400'>
 						<tr>
-							{['Name', 'Contact Method', 'Contact', 'Service', 'Budget', 'Created At'].map(column => (
+							{['Name', 'Contact Method', 'Contact', 'Service', 'Budget', 'Created At', 'Status'].map(column => (
 								<th key={column} scope='col' className='px-4 py-4 font-medium'>{column}</th>
 							))}
 						</tr>
@@ -54,9 +55,10 @@ export function LeadsList({ leads }: { leads: Lead[] }) {
 								<td className='px-4 py-5 text-zinc-300'>{serviceLabels[lead.service]}</td>
 								<td className='px-4 py-5 wrap-anywhere text-zinc-300'>{lead.budget || 'Not provided'}</td>
 								<td className='px-4 py-5 text-zinc-400'><CreatedAt date={lead.createdAt} /></td>
+								<td className='px-4 py-5'><LeadStatusControl leadId={lead.id} status={lead.status} name={lead.name} /></td>
 							</tr>
 							<tr>
-								<td colSpan={6} className='px-4 pb-5'>
+								<td colSpan={7} className='px-4 pb-5'>
 									<LeadAnalysis lead={lead} />
 								</td>
 							</tr>
@@ -89,6 +91,7 @@ export function LeadsList({ leads }: { leads: Lead[] }) {
 								</div>
 							</dl>
 							<MessageDetails message={lead.message} />
+							<div className='mt-5'><LeadStatusControl leadId={lead.id} status={lead.status} name={lead.name} /></div>
 							<LeadAnalysis lead={lead} />
 						</article>
 					</li>

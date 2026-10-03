@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import type { Lead } from '@prisma/client'
 import type { Metadata } from 'next'
 import { connection } from 'next/server'
+import { leadStatuses, statusLabels } from '@/lib/lead-status'
 
 export const metadata: Metadata = {
 	title: 'Leads Dashboard | LeadFlow AI',
@@ -23,8 +24,10 @@ export default async function DashboardPage() {
 	}
 
 	const serviceCounts = { Website: 0, WebApplication: 0, AIAutomation: 0, Other: 0 }
+	const statusCounts = { NEW: 0, CONTACTED: 0, QUALIFIED: 0, WON: 0, LOST: 0 }
 	for (const lead of leads ?? []) {
 		serviceCounts[lead.service] += 1
+		statusCounts[lead.status] += 1
 	}
 	const stats = [
 		{ label: 'Total Leads', value: leads?.length ?? 0 },
@@ -58,6 +61,14 @@ export default async function DashboardPage() {
 							<div key={stat.label} className='rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6'>
 								<dt className='text-sm text-zinc-400'>{stat.label}</dt>
 								<dd className='mt-3 text-3xl font-semibold tabular-nums'>{stat.value}</dd>
+							</div>
+						))}
+					</dl>
+					<dl aria-label='Lead status overview' className='mb-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5'>
+						{leadStatuses.map(status => (
+							<div key={status} className='rounded-xl border border-zinc-800 px-5 py-4'>
+								<dt className='text-sm text-zinc-400'>{statusLabels[status]}</dt>
+								<dd className='mt-2 text-2xl font-semibold tabular-nums'>{statusCounts[status]}</dd>
 							</div>
 						))}
 					</dl>

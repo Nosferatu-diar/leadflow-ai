@@ -23,6 +23,7 @@ function FieldError({ id, messages }: { id: string; messages?: string[] }) {
 }
 
 export function LeadForm() {
+	const [contactMethod, setContactMethod] = useState('')
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({})
 	const [feedback, setFeedback] = useState<{
@@ -78,6 +79,7 @@ export function LeadForm() {
 			}
 
 			form.reset()
+			setContactMethod('')
 			setFeedback({ kind: 'success', message: data.message })
 		} catch {
 			showError(
@@ -126,7 +128,11 @@ export function LeadForm() {
 					<select
 						id='lead-contact-method'
 						name='contactMethod'
-						defaultValue=''
+						value={contactMethod}
+						onChange={event => {
+							setContactMethod(event.target.value)
+							setFieldErrors(current => ({ ...current, contact: undefined, contactMethod: undefined }))
+						}}
 						required
 						className={fieldClassName}
 						aria-invalid={Boolean(fieldErrors.contactMethod)}
@@ -157,13 +163,14 @@ export function LeadForm() {
 					<input
 						id='lead-contact'
 						name='contact'
+						inputMode={contactMethod === 'Email' ? 'email' : contactMethod === 'Phone' ? 'tel' : 'text'}
 						required
 						className={fieldClassName}
 						aria-invalid={Boolean(fieldErrors.contact)}
 						aria-describedby={`lead-contact-hint${fieldErrors.contact ? ' lead-contact-error' : ''}`}
 					/>
 					<p id='lead-contact-hint' className='mt-2 text-xs text-zinc-400'>
-						Your Telegram username, email address, or phone number.
+						{contactMethod === 'Email' ? 'Enter an email address, for example hello@example.com.' : contactMethod === 'Phone' ? 'Use 7–15 digits, for example +998995633550. Spaces, parentheses and hyphens are accepted.' : contactMethod === 'Telegram' ? 'Use @username or https://t.me/username (5–32 letters, digits or underscores; start with a letter).' : 'Choose a contact method, then enter your contact details.'}
 					</p>
 					<FieldError id='lead-contact-error' messages={fieldErrors.contact} />
 				</div>

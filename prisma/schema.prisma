@@ -26,6 +26,14 @@ enum AIPriority {
   HIGH
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  WON
+  LOST
+}
+
 model Lead {
   id               String        @id @default(cuid())
   name             String
@@ -34,6 +42,7 @@ model Lead {
   service          Service
   budget           String?
   message          String?
+  status           LeadStatus    @default(NEW)
   createdAt        DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
   aiSummary        String?
