@@ -1,10 +1,9 @@
 import 'server-only'
 import { hasAdminSession } from './session'
+import { hasAllowedOrigin } from '@/lib/security/request-origin'
 
 export function isSameOriginRequest(request: Request) {
-	const origin = request.headers.get('origin')
-	if (!origin || request.headers.get('sec-fetch-site') === 'cross-site') return false
-	try { return new URL(origin).origin === new URL(request.url).origin } catch { return false }
+	return hasAllowedOrigin(request, true)
 }
 
 export async function authorizeAdminMutation(request: Request) {

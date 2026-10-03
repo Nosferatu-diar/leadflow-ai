@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { authorizeAdminMutation } from '@/lib/auth/request'
+import { readLimitedJson, RequestTooLargeError } from '@/lib/security/read-json'
 
 export const runtime = 'nodejs'
 
@@ -16,8 +17,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 	let body: unknown
 	try {
-		body = await request.json()
-	} catch {
+		body = await readLimitedJson(request, 1024)
+	} catch (error) {
+		if (error instanceof RequestTooLargeError) return Response.json({ success: false, message: 'Request is too large.' }, { status: 413 })
 		return Response.json({ success: false, message: 'Send a valid JSON request.' }, { status: 400 })
 	}
 	const result = statusUpdateSchema.safeParse(body)

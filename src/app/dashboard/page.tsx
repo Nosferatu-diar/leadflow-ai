@@ -9,6 +9,7 @@ import { requireAdmin } from '@/lib/auth/session'
 
 export const metadata: Metadata = {
 	title: 'Leads Dashboard | LeadFlow AI',
+	robots: { index: false, follow: false },
 }
 
 export default async function DashboardPage() {

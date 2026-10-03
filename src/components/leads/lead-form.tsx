@@ -7,7 +7,7 @@ import {
 	type LeadApiResponse,
 	type LeadFieldErrors,
 } from '@/lib/lead-schema'
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { z } from 'zod'
 
 const fieldClassName =
@@ -33,6 +33,8 @@ export function LeadForm() {
 	// A synchronous guard also blocks submissions before React updates the button.
 	const submissionInProgress = useRef(false)
 	const feedbackRef = useRef<HTMLDivElement>(null)
+	const initializedAt = useRef<number | null>(null)
+	useEffect(() => { initializedAt.current = performance.now() }, [])
 
 	function showError(message: string, errors: LeadFieldErrors = {}) {
 		setFieldErrors(errors)
@@ -64,7 +66,11 @@ export function LeadForm() {
 			const response = await fetch('/api/leads', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(result.data),
+				body: JSON.stringify({
+					...result.data,
+					website: new FormData(form).get('website'),
+					formFillTimeMs: initializedAt.current === null ? 0 : Math.floor(performance.now() - initializedAt.current),
+				}),
 			})
 			const data: LeadApiResponse = await response.json()
 
@@ -79,6 +85,7 @@ export function LeadForm() {
 			}
 
 			form.reset()
+			initializedAt.current = performance.now()
 			setContactMethod('')
 			setFeedback({ kind: 'success', message: data.message })
 		} catch {
@@ -97,6 +104,10 @@ export function LeadForm() {
 			aria-busy={isSubmitting}
 			className='mt-8 max-w-3xl'
 		>
+			<div aria-hidden='true' className='absolute -left-[10000px] h-px w-px overflow-hidden'>
+				<label htmlFor='lead-website'>Leave this field empty</label>
+				<input id='lead-website' name='website' type='text' tabIndex={-1} autoComplete='off' />
+			</div>
 			<p className='mb-6 text-sm text-zinc-400'>
 				Fields marked with * are required.
 			</p>

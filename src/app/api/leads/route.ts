@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { sendLeadNotification } from '@/lib/telegram/send-lead-notification'
 import { Service } from '@prisma/client'
 import { z } from 'zod'
+import { readLimitedJson, RequestTooLargeError } from '@/lib/security/read-json'
+import { clientBucket, consumeRateLimit } from '@/lib/security/rate-limit'
+import { hasAllowedOrigin } from '@/lib/security/request-origin'
+import { hasValidSubmissionSignals } from '@/lib/security/lead-submission'
 
 export const runtime = 'nodejs'
 
@@ -15,15 +19,29 @@ const serviceValues = {
 } satisfies Record<Lead['service'], Service>
 
 export async function POST(request: Request) {
+	if (!hasAllowedOrigin(request)) {
+		return Response.json({ success: false, message: 'Request not allowed.' }, { status: 403 })
+	}
+	const client = clientBucket(request)
+	const rate = consumeRateLimit(`leads:${client.key}`, client.identified ? 5 : 30, 10 * 60_000)
+	if (!rate.allowed) {
+		return Response.json({ success: false, message: 'Too many requests. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(rate.retryAfter) } })
+	}
 	let body: unknown
 
 	try {
-		body = await request.json()
-	} catch {
+		body = await readLimitedJson(request, 16 * 1024)
+	} catch (error) {
+		if (error instanceof RequestTooLargeError) {
+			return Response.json({ success: false, message: 'Request is too large.' }, { status: 413 })
+		}
 		return Response.json(
 			{ success: false, message: 'Send a valid JSON request.' },
 			{ status: 400 },
 		)
+	}
+	if (!hasValidSubmissionSignals(body)) {
+		return Response.json({ success: false, message: 'Unable to accept this request. Please try again.' }, { status: 400 })
 	}
 
 	const result = leadSchema.safeParse(body)

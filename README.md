@@ -144,6 +144,69 @@ limit permits ten sign-in attempts per minute. This is not a shared limiter acro
 serverless instances; configure the hosting platform's rate limiting before
 scaling. Authentication does not require a database migration or user table.
 
+## Production Security
+
+Public lead requests are limited to 16 KiB of actual bytes read, even when
+`Content-Length` is missing or dishonest. Login JSON is capped at 4 KiB and status
+JSON at 1 KiB. Configure body/time limits at the reverse proxy too: application
+checks cannot stop oversized traffic from reaching the server in the first place.
+
+The lead form sends an empty off-screen `website` honeypot and its elapsed fill
+time (`formFillTimeMs`). Both signals are checked before lead validation/database
+work. The conservative minimum is 750 ms, measured in the browser with a monotonic
+clock to avoid device clock skew. Failed attempts retain the form. API callers
+must include `website: ""` and a numeric `formFillTimeMs` of at least 750. These
+client-supplied values are easily bypassed by a purposeful bot; they only deter
+simple autofill/instant submission scripts. They are never stored on lead rows.
+
+The in-memory limiter allows five lead attempts per identified IP per ten minutes,
+including invalid requests. Without a verified IP, all visitors share a fallback
+of 30 attempts per ten minutes. Login permits ten attempts per bucket per minute;
+there is no permanent lockout. HTTP 429 includes `Retry-After`. Buckets have bounded
+memory, expire, and use a process-random HMAC rather than storing raw IPs. No IP
+is written to PostgreSQL. Shared networks may share a limit, and the fallback can
+temporarily throttle unrelated visitors during a flood.
+
+Next.js Route Handlers do not expose a trustworthy socket IP here. By default
+forwarded headers are ignored. Only set `TRUST_PROXY_IP_HEADER` to `x-real-ip` or
+`x-forwarded-for` when the app is reachable exclusively through your trusted proxy
+and that proxy overwrites the selected header with exactly one validated client
+IP. Comma-separated chains, missing/invalid IPs and unsupported settings use the
+fallback bucket. Do not enable this for a publicly reachable origin or a proxy
+that preserves client-supplied headers. Verify that changing incoming forged
+headers does not change the proxy-provided identity before enabling it.
+
+These limits reset on process restart and do not coordinate between containers,
+workers or serverless instances. They are not distributed protection or DDoS
+defense. Before deploying multiple instances, move limits to Redis, a gateway,
+Cloudflare or equivalent trusted infrastructure. Fixed windows also permit a
+burst across a window boundary; monitor aggregate traffic.
+
+Admin mutations still require signed HttpOnly sessions and matching Origin headers.
+Public requests reject foreign browser origins when supplied, but non-browser
+bots can omit or forge Origin. Dashboard/login metadata and response headers are
+noindex/nofollow. Admin pages and APIs use private/no-store responses; do not add
+a CDN rule that overrides this or caches authenticated responses.
+
+Serve production over HTTPS. Secure cookies require it. The application adds
+nosniff, strict-origin-when-cross-origin referrer policy, DENY framing, and disables
+camera/microphone/geolocation. HSTS should be enabled at the HTTPS termination
+layer after TLS is verified; it is deliberately not emitted on local HTTP. A CSP
+with verified Next.js-compatible nonce handling is a future improvement rather
+than an untested policy that breaks hydration.
+
+Keep `.env` untracked and use deployment secret settings for database, OpenAI,
+Telegram and admin credentials. `.env.example` contains only empty placeholders;
+never use `NEXT_PUBLIC_` for these values. API errors/logs are generic and do not
+include raw provider errors or credentials. The password setup command prints a
+hash only for local configuration, never during normal app requests. Rotate
+credentials if exposed; AUTH_SECRET/credential rotation invalidates sessions.
+
+Use a least-privilege database account, restrict database access where supported,
+and enable Neon backups/point-in-time recovery appropriate to your plan. Verify
+restore procedures and keep migrations reviewed. No database schema/data reset,
+deletion or production deployment is part of this hardening task.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
