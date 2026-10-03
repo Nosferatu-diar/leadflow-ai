@@ -1,57 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LeadFlow AI
 
-## Getting Started
+A Next.js App Router application for collecting leads in PostgreSQL, managing
+lead status, and optionally analyzing leads with OpenAI and notifying Telegram.
+The public form stays accessible; the dashboard requires a single-admin session.
 
-First, run the development server:
+## Local development and Prisma
+
+Use Node.js 22 and npm. Copy `.env.example` to an untracked `.env` and configure
+your own development Neon/PostgreSQL database plus admin credentials below.
 
 ```bash
+npm ci --include=dev
+npm run db:status
+npm run db:migrate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The migration command above applies the repository's existing migrations to the
+selected database. Check the target before running it. Open http://localhost:3000.
+Never commit `.env` or use a `NEXT_PUBLIC_` prefix for credentials.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Prisma 6 reads `DATABASE_URL` from the environment. `prisma generate` creates the
+application's typed database client and does not connect to PostgreSQL. The build
+and postinstall scripts already generate it. Keep all files in `prisma/migrations`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `prisma migrate dev`: authors new migrations and checks schema drift using a
+  shadow database; use only on a development database when changing the schema.
+  If it asks for a reset, stop and investigate.
+- `npm run db:migrate` (`prisma migrate deploy`): applies pending committed
+  migrations non-interactively. It does not author migrations or reset data.
+  Review migration SQL and back up the target first; migration SQL can still
+  change data. Never use `migrate dev`, `migrate reset`, or `db push` in production.
+- `npm run db:status`: read-only migration-history status, not a complete drift
+  or data-integrity check.
 
-## PostgreSQL setup for lead persistence
-
-This project uses Prisma 6 with PostgreSQL. Prisma 6 supports this integration
-with only `prisma` and `@prisma/client`, without a separate driver adapter.
-
-1. Create or choose a PostgreSQL **development** database, locally or with a host.
-2. Copy `.env.example` to `.env` in the project root (beside `package.json`).
-3. Set `DATABASE_URL` to the real PostgreSQL connection URL supplied by your
-   database setup or host. It includes the username, password, host, port and
-   database name. Follow your host's SSL requirements and URL-encode special
-   characters in credentials. Never commit `.env` or use `NEXT_PUBLIC_DATABASE_URL`.
-4. With the database running and reachable, create and apply the first migration:
-
-   ```bash
-   npx prisma migrate dev --name create_leads
-   npx prisma generate
-   ```
-
-   `migrate dev` is for development databases. It needs a shadow database to check
-   migrations; your database account must have permission to create one, or you
-   must configure a separate shadow database. If Prisma requests a reset, stop
-   and investigate instead of accepting it. No database reset is needed for this task.
-
-5. Start or restart `npm run dev` so Next.js loads the environment variable.
-6. Submit a lead and check for HTTP 201 with a `leadId`. Verify the row with your
-   PostgreSQL client or `npx prisma studio`.
-
-The schema is in `prisma/schema.prisma`. No migration has been applied as part of
-the initial integration because `DATABASE_URL` was not configured. Prisma Client
-generation and the production build do not need an active database connection.
-Valid submissions return HTTP 503 if persistence fails; the form retains the
-entered values so they can be retried. Invalid input still returns HTTP 400.
+The dashboard queries at request time, so building needs no active database
+connection. Failed persistence returns HTTP 503; invalid input returns HTTP 400.
 
 ## AI lead analysis
 
@@ -68,8 +52,7 @@ variables. The OpenAI project must have API billing/credits and model access.
 
 The request uses a 30-second timeout, no automatic retries, a 1000-token output
 limit, and bounded input fields. Requests without a configured key return an
-honest configuration error and do not save an analysis. No actual AI call was
-tested during initial implementation because the key was missing.
+honest configuration error and do not save an analysis. Real AI testing remains postponed until API billing is enabled.
 
 ## Telegram lead notifications
 
@@ -104,7 +87,11 @@ verified session. Every admin mutation checks the session on the server before
 database or OpenAI work. Login, logout and admin mutations require a matching
 `Origin` header and reject cross-site requests. Non-browser callers must send
 the application's origin explicitly. Reverse proxies must preserve the public
-request origin/protocol so this comparison matches the URL visitors use.
+request protocol. Set server-only `APP_ORIGIN` to the exact public HTTPS origin
+in production so checks do not compare against an internal container address.
+No path or trailing slash is accepted. Local development can leave it blank.
+An invalid configured origin fails closed; incoming Host/forwarded-host headers
+do not determine the allowed origin.
 
 Configure the three server-only variables in the root `.env` (or your deployment's
 secret settings). No password or secret has been generated for your actual admin:
@@ -207,17 +194,144 @@ and enable Neon backups/point-in-time recovery appropriate to your plan. Verify
 restore procedures and keep migrations reviewed. No database schema/data reset,
 deletion or production deployment is part of this hardening task.
 
-## Learn More
+## Production deployment: GitHub → Dokploy → Neon
 
-To learn more about Next.js, take a look at the following resources:
+Use one Node application and one replica. No custom Dockerfile is needed:
+[Dokploy's Nixpacks build type](https://docs.dokploy.com/docs/core/applications/build-type)
+supports command overrides, and the
+[Nixpacks Node provider](https://nixpacks.com/docs/providers/node) selects Node
+from `package.json` engines. Its Prisma setup includes OpenSSL. Generate Prisma
+Client during the Linux build; do not copy Windows `node_modules` to the VPS.
+No Linux/Dokploy image build has been tested locally; verify the installed
+Nixpacks version supports Node 22 and review its build plan/logs.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Review the diff and `.gitignore`, confirm no secrets are tracked, then commit
+   and push this repository (including `package-lock.json` and migrations) to
+   your own GitHub repository. Repository creation/push are manual steps.
+2. In Dokploy, create an Application, connect your GitHub provider, choose the
+   repository/branch, and use repository root `/` as the build path.
+3. Choose **Nixpacks** and configure these overrides in its environment settings:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```dotenv
+   NIXPACKS_NODE_VERSION=22
+   NIXPACKS_INSTALL_CMD=npm ci --include=dev
+   NIXPACKS_BUILD_CMD=npm run build
+   NIXPACKS_START_CMD=npm start
+   NODE_ENV=production
+   PORT=3000
+   ```
 
-## Deploy on Vercel
+   Route the proxy to container port 3000. `npm start` binds `0.0.0.0` and reads
+   process environment `PORT`; a local `.env` cannot set the CLI listening port.
+   Keep dev dependencies in this deployment: Prisma CLI, TypeScript and Tailwind
+   are needed for installation/build; Prisma CLI is also used by the migration
+   runner. Do not use `npm ci --omit=dev` with this setup.
+4. Configure the actual application values in Dokploy's service environment
+   settings using the table below, never in source or a committed `.env`.
+   Use the actual Neon connection URL with its SSL requirements. Use a separate
+   production database/branch and review access permissions and backups.
+5. Build the release, then apply migrations **once per release before routing
+   traffic to the new app** using a separate trusted runner/CI step with the same
+   commit, Node 22, migrations and production `DATABASE_URL`:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm ci --include=dev
+   npm run db:migrate
+   npm run db:status
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   The application build itself never applies migrations. This guide does not
+   assume Dokploy provides a pre-deploy hook. If you have no separate release
+   runner, for the initial single-instance deployment set instead:
+
+   ```dotenv
+   NIXPACKS_START_CMD=npm run db:migrate && npm start
+   ```
+
+   This fallback applies pending migrations before listening and prevents startup
+   if migration fails. It runs on each restart (normally a no-op); prefer the
+   separate release runner and plain `npm start` when your release process is
+   ready. Do not use this fallback for multiple replicas. Avoid concurrent
+   deploys/migrations and review compatibility with the old release.
+6. Set up your real domain and HTTPS in Dokploy, configure `APP_ORIGIN` to that
+   exact HTTPS origin, and deploy manually. Keep the application port private
+   behind the proxy. Do not bypass authentication or Origin checks to fix TLS or
+   proxy configuration. Validate public HTTPS before signing in.
+7. Check `GET /api/health` returns HTTP 200 and exactly `{"status":"ok"}`.
+   Configure a container health check with this command (no curl dependency):
+
+   ```bash
+   node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+   ```
+
+   Suggested settings: interval 30 seconds, timeout 5 seconds, start period
+   30 seconds, retries 3. This is liveness, not database/provider readiness;
+   Neon downtime must not cause a restart loop.
+8. When you are ready to create a real test record, submit a valid lead and verify
+   HTTP 201, form reset and its saved row in the dashboard. Sign in over HTTPS;
+   verify the Secure/HttpOnly/SameSite=Lax cookie, logout, protected admin APIs,
+   and dashboard/login `noindex` headers. Check security headers on the public
+   URL. This preparation task does not create test records.
+9. Configure both Telegram variables, start the bot conversation, submit your
+   test lead, and verify delivery. Telegram failure must preserve the row and
+   submission success. Review safe server logs without printing credentials.
+10. Test AI from the authenticated dashboard only after OpenAI billing/model
+    access is enabled. Verify saved structured analysis and generic failure
+    feedback. Submission itself never calls OpenAI.
+
+The complete single-host sequence, with real environment values already set, is:
+
+```bash
+npm ci --include=dev
+npm run build
+npm run db:migrate
+npm start
+```
+
+Do not run database commands against an unverified target. A failed migration
+requires investigation; never accept a reset. Migrations are not rolled back by
+reverting the application image. Preserve backups and use a reviewed recovery
+plan. See [Dokploy environment configuration](https://docs.dokploy.com/docs/core/variables).
+
+### Production environment
+
+| Variable | Requirement |
+| --- | --- |
+| `DATABASE_URL` | Required for persistence/dashboard; actual Neon PostgreSQL URL with SSL. |
+| `ADMIN_EMAIL` | Required for admin access. |
+| `ADMIN_PASSWORD_HASH` | Required for admin access; bcrypt hash from `npm run auth:hash`. |
+| `AUTH_SECRET` | Required for admin access; independent random base64url secret of at least 32 bytes. |
+| `APP_ORIGIN` | Required for this proxy deployment; exact public HTTPS origin, no path/trailing slash. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Optional pair; both required for delivery. Missing/failed Telegram does not fail lead submission. |
+| `OPENAI_API_KEY` | Optional for serving/submission; required for real AI analysis with enabled API billing. |
+| `OPENAI_MODEL` | Optional override for a model supporting Responses structured output; blank uses the code default. |
+| `TRUST_PROXY_IP_HEADER` | Optional; leave unset until the proxy guarantee below is verified. |
+| `NODE_ENV`, `PORT` | Dokploy process settings: `production`, `3000`; not secrets. |
+
+Preserve the bcrypt hash's literal dollar signs. In a dotenv-style editor use
+single quotes around the hash; in a dedicated raw-value field enter only the
+hash, without literal quotes. Verify the final runtime value without logging it.
+Keep signing secrets stable across releases; rotation intentionally signs users
+out. `.env` is for local use only; configure production values in Dokploy.
+
+Do **not** enable `TRUST_PROXY_IP_HEADER` automatically. Dokploy's proxy must be
+the only route to the app and overwrite the chosen header with one validated
+client IP, including when a client forges it. The existing limiter rejects IP
+chains and defaults to a shared bucket. It is in-memory, resets on restart, and
+works for one process only. Redis/gateway/Cloudflare-style shared limits are a
+future improvement before scaling. See Production Security above.
+
+### Release checklist
+
+- [ ] `npm run lint` and `npm run typecheck` pass.
+- [ ] `npm run db:generate` and `npm run build` pass in the deployment environment.
+- [ ] Migration SQL reviewed, target verified, `npm run db:migrate` completed and
+      `npm run db:status` shows up to date.
+- [ ] No secrets tracked; Dokploy environment configured; `.env` stays local.
+- [ ] Neon reachable with SSL and suitable permissions; backups/restore plan verified.
+- [ ] HTTPS/domain and `APP_ORIGIN` correct; direct application port private.
+- [ ] `/api/health` responds; health check and monitoring configured.
+- [ ] Admin login/logout, cookie flags, protected APIs and noindex verified.
+- [ ] Public lead submission, validation, feedback and database persistence verified.
+- [ ] Telegram verified, including safe failure after persistence.
+- [ ] OpenAI analysis verified when billing is enabled (otherwise explicitly pending).
