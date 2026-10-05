@@ -82,8 +82,9 @@ for delivery. This is a best-effort notification: there is no queue or retry job
 ## Single-admin authentication
 
 The public homepage and `POST /api/leads` remain public. `/dashboard`,
-`PATCH /api/leads/[id]/status` and `POST /api/leads/[id]/analyze` require a
-verified session. Every admin mutation checks the session on the server before
+`PATCH /api/leads/[id]/status`, `DELETE /api/leads/[id]` and
+`POST /api/leads/[id]/analyze` require a verified session. Every admin mutation
+checks the session on the server before
 database or OpenAI work. Login, logout and admin mutations require a matching
 `Origin` header and reject cross-site requests. Non-browser callers must send
 the application's origin explicitly. Reverse proxies must preserve the public
@@ -94,7 +95,7 @@ An invalid configured origin fails closed; incoming Host/forwarded-host headers
 do not determine the allowed origin.
 
 Configure the three server-only variables in the root `.env` (or your deployment's
-secret settings). No password or secret has been generated for your actual admin:
+secret settings) using your own credentials:
 
 1. Set `ADMIN_EMAIL` to your admin email address.
 2. In your own interactive terminal, run `npm run auth:hash`. Enter and confirm
@@ -192,149 +193,77 @@ credentials if exposed; AUTH_SECRET/credential rotation invalidates sessions.
 Use a least-privilege database account, restrict database access where supported,
 and enable Neon backups/point-in-time recovery appropriate to your plan. Verify
 restore procedures and keep migrations reviewed. No database schema/data reset,
-deletion or production deployment is part of this hardening task.
+deletion or production deployment is part of this QA pass.
 
-## Production deployment: GitHub → Dokploy → Neon
+## Production deployment: GitHub → Netlify → Neon
 
-Use one Node application and one replica. No custom Dockerfile is needed:
-[Dokploy's Nixpacks build type](https://docs.dokploy.com/docs/core/applications/build-type)
-supports command overrides, and the
-[Nixpacks Node provider](https://nixpacks.com/docs/providers/node) selects Node
-from `package.json` engines. Its Prisma setup includes OpenSSL. Generate Prisma
-Client during the Linux build; do not copy Windows `node_modules` to the VPS.
-No Linux/Dokploy image build has been tested locally; verify the installed
-Nixpacks version supports Node 22 and review its build plan/logs.
+This demo is deployed on Netlify's free plan. Netlify's automatic Next.js adapter
+supports App Router, Server Components and Route Handlers. Keep the framework
+detected as Next.js, Node.js 22, and the build command `npm run build`; do not
+configure a static export or a long-running `npm start` container. Installation
+and build generate Prisma Client on the deployment platform. Never copy Windows
+`node_modules` to Netlify.
 
-1. Review the diff and `.gitignore`, confirm no secrets are tracked, then commit
-   and push this repository (including `package-lock.json` and migrations) to
-   your own GitHub repository. Repository creation/push are manual steps.
-2. In Dokploy, create an Application, connect your GitHub provider, choose the
-   repository/branch, and use repository root `/` as the build path.
-3. Choose **Nixpacks** and configure these overrides in its environment settings:
+See [Next.js on Netlify](https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/)
+for the supported runtime and automatic adapter setup. No extra adapter package
+or committed Netlify configuration is required by this application. This QA pass
+does not change the existing Netlify settings or trigger a deployment.
 
-   ```dotenv
-   NIXPACKS_NODE_VERSION=22
-   NIXPACKS_INSTALL_CMD=npm ci --include=dev
-   NIXPACKS_BUILD_CMD=npm run build
-   NIXPACKS_START_CMD=npm start
-   NODE_ENV=production
-   PORT=3000
-   ```
-
-   Route the proxy to container port 3000. `npm start` binds `0.0.0.0` and reads
-   process environment `PORT`; a local `.env` cannot set the CLI listening port.
-   Keep dev dependencies in this deployment: Prisma CLI, TypeScript and Tailwind
-   are needed for installation/build; Prisma CLI is also used by the migration
-   runner. Do not use `npm ci --omit=dev` with this setup.
-4. Configure the actual application values in Dokploy's service environment
-   settings using the table below, never in source or a committed `.env`.
-   Use the actual Neon connection URL with its SSL requirements. Use a separate
-   production database/branch and review access permissions and backups.
-5. Build the release, then apply migrations **once per release before routing
-   traffic to the new app** using a separate trusted runner/CI step with the same
-   commit, Node 22, migrations and production `DATABASE_URL`:
-
-   ```bash
-   npm ci --include=dev
-   npm run db:migrate
-   npm run db:status
-   ```
-
-   The application build itself never applies migrations. This guide does not
-   assume Dokploy provides a pre-deploy hook. If you have no separate release
-   runner, for the initial single-instance deployment set instead:
-
-   ```dotenv
-   NIXPACKS_START_CMD=npm run db:migrate && npm start
-   ```
-
-   This fallback applies pending migrations before listening and prevents startup
-   if migration fails. It runs on each restart (normally a no-op); prefer the
-   separate release runner and plain `npm start` when your release process is
-   ready. Do not use this fallback for multiple replicas. Avoid concurrent
-   deploys/migrations and review compatibility with the old release.
-6. Set up your real domain and HTTPS in Dokploy, configure `APP_ORIGIN` to that
-   exact HTTPS origin, and deploy manually. Keep the application port private
-   behind the proxy. Do not bypass authentication or Origin checks to fix TLS or
-   proxy configuration. Validate public HTTPS before signing in.
-7. Check `GET /api/health` returns HTTP 200 and exactly `{"status":"ok"}`.
-   Configure a container health check with this command (no curl dependency):
-
-   ```bash
-   node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health',{signal:AbortSignal.timeout(3000)}).then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-   ```
-
-   Suggested settings: interval 30 seconds, timeout 5 seconds, start period
-   30 seconds, retries 3. This is liveness, not database/provider readiness;
-   Neon downtime must not cause a restart loop.
-8. When you are ready to create a real test record, submit a valid lead and verify
-   HTTP 201, form reset and its saved row in the dashboard. Sign in over HTTPS;
-   verify the Secure/HttpOnly/SameSite=Lax cookie, logout, protected admin APIs,
-   and dashboard/login `noindex` headers. Check security headers on the public
-   URL. This preparation task does not create test records.
-9. Configure both Telegram variables, start the bot conversation, submit your
-   test lead, and verify delivery. Telegram failure must preserve the row and
-   submission success. Review safe server logs without printing credentials.
-10. Test AI from the authenticated dashboard only after OpenAI billing/model
-    access is enabled. Verify saved structured analysis and generic failure
-    feedback. Submission itself never calls OpenAI.
-
-The complete single-host sequence, with real environment values already set, is:
-
-```bash
-npm ci --include=dev
-npm run build
-npm run db:migrate
-npm start
-```
-
-Do not run database commands against an unverified target. A failed migration
-requires investigation; never accept a reset. Migrations are not rolled back by
-reverting the application image. Preserve backups and use a reviewed recovery
-plan. See [Dokploy environment configuration](https://docs.dokploy.com/docs/core/variables).
-
-### Production environment
+Configure server credentials in Netlify's environment settings, never in source
+or `netlify.toml`. They must be available to Functions; `APP_ORIGIN` must also be
+available during Builds for homepage canonical/hreflang metadata. If your plan
+does not offer scope selection, the default all-scopes setting includes both.
+Use separate credentials/databases for preview deployments; never give untrusted
+pull-request builds production credentials. See
+[environment variable configuration](https://docs.netlify.com/build/environment-variables/overview/).
 
 | Variable | Requirement |
 | --- | --- |
-| `DATABASE_URL` | Required for persistence/dashboard; actual Neon PostgreSQL URL with SSL. |
+| `DATABASE_URL` | Actual Neon PostgreSQL URL with SSL; required for persistence/dashboard. |
 | `ADMIN_EMAIL` | Required for admin access. |
-| `ADMIN_PASSWORD_HASH` | Required for admin access; bcrypt hash from `npm run auth:hash`. |
-| `AUTH_SECRET` | Required for admin access; independent random base64url secret of at least 32 bytes. |
-| `APP_ORIGIN` | Required for this proxy deployment; exact public HTTPS origin, no path/trailing slash. |
-| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Optional pair; both required for delivery. Missing/failed Telegram does not fail lead submission. |
-| `OPENAI_API_KEY` | Optional for serving/submission; required for real AI analysis with enabled API billing. |
-| `OPENAI_MODEL` | Optional override for a model supporting Responses structured output; blank uses the code default. |
-| `TRUST_PROXY_IP_HEADER` | Optional; leave unset until the proxy guarantee below is verified. |
-| `NODE_ENV`, `PORT` | Dokploy process settings: `production`, `3000`; not secrets. |
+| `ADMIN_PASSWORD_HASH` | Bcrypt hash from `npm run auth:hash`; required for admin access. |
+| `AUTH_SECRET` | Independent random base64url secret of at least 32 bytes. |
+| `APP_ORIGIN` | Exact public HTTPS origin for this deployment, no path/trailing slash. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Both required for delivery; missing/failed delivery preserves the saved lead. |
+| `OPENAI_API_KEY` | Optional for serving/submission; real analysis requires enabled API billing. |
+| `OPENAI_MODEL` | Optional Responses structured-output model override. |
+| `TRUST_PROXY_IP_HEADER` | Leave blank unless the trusted single-IP proxy guarantee has been verified. |
 
-Preserve the bcrypt hash's literal dollar signs. In a dotenv-style editor use
-single quotes around the hash; in a dedicated raw-value field enter only the
-hash, without literal quotes. Verify the final runtime value without logging it.
-Keep signing secrets stable across releases; rotation intentionally signs users
-out. `.env` is for local use only; configure production values in Dokploy.
+Use the actual HTTPS Netlify site origin as `APP_ORIGIN`; a custom domain is not
+required. Preserve the bcrypt hash's literal dollar signs: a raw-value field
+takes the hash without surrounding quotes, while local dotenv files need single
+quotes. Keep signing secrets stable across releases; rotation signs users out.
+Do not copy workstation-only `SWC_NATIVE_BINDING_CACHE` to Netlify.
 
-Do **not** enable `TRUST_PROXY_IP_HEADER` automatically. Dokploy's proxy must be
-the only route to the app and overwrite the chosen header with one validated
-client IP, including when a client forges it. The existing limiter rejects IP
-chains and defaults to a shared bucket. It is in-memory, resets on restart, and
-works for one process only. Redis/gateway/Cloudflare-style shared limits are a
-future improvement before scaling. See Production Security above.
+The build never runs migrations. For a release that actually changes the schema,
+review committed migration SQL, verify the target and backups, then use a separate
+trusted runner with the correct `DATABASE_URL` to run `npm run db:migrate` and
+`npm run db:status`. Never reset the database, use `migrate dev`/`db push` in
+production, or migrate merely to rerun QA. This cleanup has no schema changes.
 
-### Release checklist
+After a manual deployment, check the public HTTPS URL:
 
-- [ ] `npm run lint` and `npm run typecheck` pass.
-- [ ] `npm run db:generate` and `npm run build` pass in the deployment environment.
-- [ ] Migration SQL reviewed, target verified, `npm run db:migrate` completed and
-      `npm run db:status` shows up to date.
-- [ ] No secrets tracked; Dokploy environment configured; `.env` stays local.
-- [ ] Neon reachable with SSL and suitable permissions; backups/restore plan verified.
-- [ ] HTTPS/domain and `APP_ORIGIN` correct; direct application port private.
-- [ ] `/api/health` responds; health check and monitoring configured.
-- [ ] Admin login/logout, cookie flags, protected APIs and noindex verified.
-- [ ] Public lead submission, validation, feedback and database persistence verified.
-- [ ] Telegram verified, including safe failure after persistence.
-- [ ] OpenAI analysis verified when billing is enabled (otherwise explicitly pending).
+- `GET /api/health` returns HTTP 200 and `{"status":"ok"}`. This is liveness,
+  not database or provider readiness.
+- Locale redirects, homepage links and localized login/dashboard routes work.
+- Login/logout, Secure/HttpOnly/SameSite=Lax cookies, authenticated mutations,
+  security headers and admin noindex/private-no-store responses work.
+- A deliberately submitted test lead persists before Telegram delivery is
+  attempted; delivery failure leaves the row and submission success intact.
+- AI is tested only when billing/model access is enabled. Real AI testing is
+  intentionally postponed for this demo.
+
+Netlify serves dynamic pages/API handlers through serverless functions. The
+in-memory limiter is per process, resets with new instances and is not shared
+between function instances. It remains a documented demo limitation; do not
+describe it as distributed spam protection. Telegram has no durable retry queue.
+No paid infrastructure, custom domain, registration or password reset is included.
+
+### Local release checks
+
+`npm run lint`, `npm run typecheck`, `npx prisma generate` and `npm run build`
+must pass. Check that `.env` remains ignored and no credentials are tracked.
+Destructive dashboard tests should use isolated fixtures, not existing Neon rows.
 
 ## Interface languages
 
@@ -368,9 +297,7 @@ remain unchanged in English. Server logs, provider/configuration identifiers and
 CLI-only validation diagnostics also stay in English. Login/dashboard retain
 noindex and private/no-store headers on all locale paths. The homepage has
 localized metadata and canonical/hreflang URLs when a real `APP_ORIGIN` is set.
-No schema migration, deployment or live OpenAI test is required for this change.
 
-On this Windows workstation, `.env.local` contains only an additional local
-`SWC_NATIVE_BINDING_CACHE` setting for a private native-loader cache. It resolves
-the config loader's rejection of sandbox-writable cache ancestors. This ignored
-machine-specific setting must not be copied to Netlify/Linux or committed.
+On Windows, a workstation may need an ignored `.env.local`
+`SWC_NATIVE_BINDING_CACHE` override for its native-loader cache. This is a local
+configuration only; do not copy it to Netlify/Linux or commit it.

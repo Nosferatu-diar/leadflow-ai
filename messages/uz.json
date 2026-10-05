@@ -1,7 +1,6 @@
 {
   "Common": {
     "skip": "Asosiy mazmunga o‘tish",
-    "footer": "Aniqroq ma’lumot. Kengroq imkoniyatlar.",
     "language": "Interfeys tili",
     "loading": "Yuklanmoqda…",
     "retry": "Qayta urinish",
@@ -27,8 +26,6 @@
     "collectDescription": "Mijozlarga saytingiz orqali so‘rov yuborishning qulay usulini taklif qiling.",
     "aiTitle": "AI tahlili",
     "aiDescription": "Tahlilni ishga tushirib, qisqa xulosa, ustuvorlik va tavsiya etilgan javobni oling.",
-    "notifyTitle": "Tezkor bildirishnomalar",
-    "notifyDescription": "Muhim murojaatlar haqida darhol xabar oling.",
     "stepsHeading": "Murojaatdan mijoz bilan muloqotgacha aniq yo‘l.",
     "step1Title": "Mijoz so‘rov yuboradi",
     "step1Description": "Qisqa forma aloqa ma’lumotlari va loyiha ehtiyojlarini yig‘adi.",
@@ -38,7 +35,6 @@
     "step3Description": "Sozlangan bot biznes egasiga yangi murojaat haqida xabar beradi.",
     "formHeading": "Navbatdagi murojaatdan boshlang.",
     "formDescription": "Aloqa ma’lumotlaringizni va loyiha ehtiyojlarini yozing. So‘rovingiz tekshirilib, keyingi muloqot uchun saqlanadi.",
-    "dashboardHeading": "Barcha murojaatlar bir joyda.",
     "dashboardDescription": "So‘rovlar, aloqa ma’lumotlari va xabarlarni bir joyda saqlang.",
     "aboutLabel": "LeadFlow AI nima?",
     "aboutHeading": "Birinchi murojaatdan keyingi aniq qadamgacha.",

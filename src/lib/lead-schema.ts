@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import messages from '../../messages/en.json'
+import type messages from '../../messages/en.json'
 
 type ValidationKey = keyof typeof messages.Validation
 type TranslateValidation = (key: ValidationKey) => string
@@ -63,10 +63,7 @@ export function createLeadSchema(t: TranslateValidation) {
 
 }
 
-// English fallback for non-localized callers; rules exist in just one factory.
-export const leadSchema = createLeadSchema(key => messages.Validation[key])
-
-export type Lead = z.infer<typeof leadSchema>
+export type Lead = z.infer<ReturnType<typeof createLeadSchema>>
 export type LeadFieldErrors = Partial<Record<keyof Lead, string[]>>
 
 export type LeadApiResponse =

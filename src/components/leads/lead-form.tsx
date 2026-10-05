@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { useLocale, useTranslations } from 'next-intl'
 
 const fieldClassName =
-	'mt-2 min-h-12 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder:text-zinc-500 transition-colors hover:border-zinc-600 focus-visible:border-teal-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 aria-invalid:border-red-400 disabled:opacity-60 sm:text-sm'
+	'mt-2 min-h-12 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder:text-zinc-400 transition-colors hover:border-zinc-600 focus-visible:border-teal-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 aria-invalid:border-red-400 disabled:opacity-60 sm:text-sm'
 const labelClassName = 'block text-sm font-medium text-zinc-200'
 
 function FieldError({ id, messages }: { id: string; messages?: string[] }) {

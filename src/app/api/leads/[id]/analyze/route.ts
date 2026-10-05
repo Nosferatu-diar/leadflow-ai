@@ -5,6 +5,7 @@ import { analysisSchema } from '@/lib/ai/analysis-schema'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { authorizeAdminMutation } from '@/lib/auth/request'
+import { leadIdSchema } from '@/lib/lead-status'
 
 export const runtime = 'nodejs'
 
@@ -13,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 	const denied = await authorizeAdminMutation(request)
 	if (denied) return denied
 	const { id } = await params
-	if (!z.string().min(1).max(100).safeParse(id).success) {
+	if (!leadIdSchema.safeParse(id).success) {
 		return Response.json({ success: false, message: t('invalidId') }, { status: 400 })
 	}
 

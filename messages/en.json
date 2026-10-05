@@ -1,7 +1,6 @@
 {
   "Common": {
     "skip": "Skip to content",
-    "footer": "A little more clarity. A lot more opportunity.",
     "language": "Interface language",
     "loading": "Loading…",
     "retry": "Try again",
@@ -27,8 +26,6 @@
     "collectDescription": "Give customers a simple way to send a request from your website.",
     "aiTitle": "AI Analysis",
     "aiDescription": "Generate a summary, priority and suggested reply when you choose to analyze a lead.",
-    "notifyTitle": "Instant Notifications",
-    "notifyDescription": "Receive important lead notifications instantly.",
     "stepsHeading": "A clear path from request to follow-up.",
     "step1Title": "Customer sends a request",
     "step1Description": "A short form captures their contact details and project needs.",
@@ -38,7 +35,6 @@
     "step3Description": "The configured bot notifies the business owner about the new lead.",
     "formHeading": "Start with your next customer inquiry.",
     "formDescription": "Share your contact details and project needs. Your request will be validated and saved for follow-up.",
-    "dashboardHeading": "Your leads, in one place.",
     "dashboardDescription": "Keep inquiries, contact details and messages together in one place.",
     "aboutLabel": "What is LeadFlow AI?",
     "aboutHeading": "From first inquiry to a clear next step.",
