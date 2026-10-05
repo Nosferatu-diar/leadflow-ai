@@ -11,7 +11,7 @@ const navigation = [
 export function Navbar() {
 	const t = useTranslations('Nav')
 	return (
-		<header className='border-b border-zinc-800 bg-zinc-950'>
+		<header className='sticky top-0 z-40 border-b border-zinc-800 bg-zinc-950/85 backdrop-blur-md'>
 			<nav
 				aria-label={t('label')}
 				className='mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-5 py-4 sm:px-8 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-x-8'

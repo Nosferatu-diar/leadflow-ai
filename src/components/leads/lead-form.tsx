@@ -112,7 +112,7 @@ export function LeadForm() {
 		<form
 			onSubmit={handleSubmit}
 			aria-busy={isSubmitting}
-			className='mt-8 max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-8'
+			className='w-full min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-8'
 		>
 			<div aria-hidden='true' className='absolute -left-[10000px] h-px w-px overflow-hidden'>
 				<label htmlFor='lead-website'>{t('honeypot')}</label>
@@ -281,7 +281,7 @@ export function LeadForm() {
 			<button
 				type='submit'
 				disabled={isSubmitting}
-				className='mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-teal-300 px-6 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-teal-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300 disabled:cursor-wait disabled:opacity-60 sm:w-auto'
+				className='mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-teal-300 px-6 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-teal-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300 disabled:cursor-wait disabled:opacity-60'
 			>
 				{isSubmitting ? t('sending') : t('send')}
 			</button>

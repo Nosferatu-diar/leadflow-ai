@@ -18,6 +18,56 @@ body {
 	color: var(--foreground);
 }
 
+html {
+	scroll-behavior: smooth;
+	scroll-padding-top: 10rem;
+}
+
+@media (min-width: 1024px) {
+	html { scroll-padding-top: 6.5rem; }
+}
+
+.homepage-hero {
+	/* Match the existing two-row navbar until its actual height is measured. */
+	--navbar-height: 135px;
+	min-height: calc(100svh - var(--navbar-height));
+	background: #000;
+}
+
+@media (min-width: 1024px) {
+	.homepage-hero { --navbar-height: 83px; }
+}
+
+.hero-overlay {
+	background: linear-gradient(90deg, rgb(0 0 0 / 85%), rgb(0 0 0 / 72%) 40%, rgb(0 0 0 / 12%) 75%, rgb(0 0 0 / 5%)),
+		linear-gradient(0deg, #000, transparent 20%, transparent 90%, rgb(0 0 0 / 10%));
+}
+
+.section-reveal {
+	transition: opacity 450ms ease, transform 450ms ease;
+}
+
+.section-reveal[data-reveal='waiting'] {
+	opacity: 0;
+	transform: translateY(24px);
+}
+
+.section-reveal:focus-within {
+	opacity: 1;
+	transform: none;
+}
+
+.audience-grid > li { border-color: #27272a; }
+.audience-grid > li:nth-child(odd) { border-right-width: 1px; }
+.audience-grid > li:nth-child(-n + 4) { border-bottom-width: 1px; }
+
+@media (min-width: 640px) {
+	.audience-grid > li:nth-child(odd),
+	.audience-grid > li:nth-child(-n + 4) { border-width: 0; }
+	.audience-grid > li:not(:nth-child(3n)) { border-right-width: 1px; }
+	.audience-grid > li:nth-child(-n + 3) { border-bottom-width: 1px; }
+}
+
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
 	outline: 2px solid #5eead4;
 	outline-offset: 4px;
@@ -32,6 +82,8 @@ html:has(dialog[open]) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+	html { scroll-behavior: auto; }
+	.section-reveal[data-reveal='waiting'] { opacity: 1; transform: none; }
 	*, *::before, *::after {
 		transition-duration: 0s !important;
 	}
