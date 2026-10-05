@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -19,9 +22,11 @@ const nextConfig: NextConfig = {
       },
       { source: '/dashboard/:path*', headers: privateHeaders },
       { source: '/login/:path*', headers: privateHeaders },
+      { source: '/:locale(en|ru|uz)/dashboard/:path*', headers: privateHeaders },
+      { source: '/:locale(en|ru|uz)/login/:path*', headers: privateHeaders },
       { source: '/api/:path*', headers: privateHeaders },
     ];
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

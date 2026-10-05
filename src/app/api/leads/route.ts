@@ -1,4 +1,7 @@
-import { leadSchema, type Lead } from '@/lib/lead-schema'
+import { getTranslations } from 'next-intl/server'
+import { getApiLocale } from '@/i18n/api'
+import { getApiTranslations } from '@/i18n/api'
+import { createLeadSchema, type Lead } from '@/lib/lead-schema'
 import { prisma } from '@/lib/prisma'
 import { sendLeadNotification } from '@/lib/telegram/send-lead-notification'
 import { Service } from '@prisma/client'
@@ -19,13 +22,14 @@ const serviceValues = {
 } satisfies Record<Lead['service'], Service>
 
 export async function POST(request: Request) {
+	const t = await getApiTranslations(request)
 	if (!hasAllowedOrigin(request)) {
-		return Response.json({ success: false, message: 'Request not allowed.' }, { status: 403 })
+		return Response.json({ success: false, message: t('notAllowed') }, { status: 403 })
 	}
 	const client = clientBucket(request)
 	const rate = consumeRateLimit(`leads:${client.key}`, client.identified ? 5 : 30, 10 * 60_000)
 	if (!rate.allowed) {
-		return Response.json({ success: false, message: 'Too many requests. Please try again later.' }, { status: 429, headers: { 'Retry-After': String(rate.retryAfter) } })
+		return Response.json({ success: false, message: t('rateLimit') }, { status: 429, headers: { 'Retry-After': String(rate.retryAfter) } })
 	}
 	let body: unknown
 
@@ -33,24 +37,25 @@ export async function POST(request: Request) {
 		body = await readLimitedJson(request, 16 * 1024)
 	} catch (error) {
 		if (error instanceof RequestTooLargeError) {
-			return Response.json({ success: false, message: 'Request is too large.' }, { status: 413 })
+			return Response.json({ success: false, message: t('tooLarge') }, { status: 413 })
 		}
 		return Response.json(
-			{ success: false, message: 'Send a valid JSON request.' },
+			{ success: false, message: t('json') },
 			{ status: 400 },
 		)
 	}
 	if (!hasValidSubmissionSignals(body)) {
-		return Response.json({ success: false, message: 'Unable to accept this request. Please try again.' }, { status: 400 })
+		return Response.json({ success: false, message: t('spam') }, { status: 400 })
 	}
 
-	const result = leadSchema.safeParse(body)
+	const validation = await getTranslations({ locale: getApiLocale(request), namespace: 'Validation' })
+	const result = createLeadSchema(validation).safeParse(body)
 
 	if (!result.success) {
 		return Response.json(
 			{
 				success: false,
-				message: 'Please check your details and try again.',
+				message: t('checkDetails'),
 				fieldErrors: z.flattenError(result.error).fieldErrors,
 			},
 			{ status: 400 },
@@ -74,7 +79,7 @@ export async function POST(request: Request) {
 		// Do not expose credentials, query details, or submitted contact information.
 		console.error('Unable to save lead to PostgreSQL.')
 		return Response.json(
-			{ success: false, message: 'We could not save your request. Please try again later.' },
+			{ success: false, message: t('saveFailed') },
 			{ status: 503 },
 		)
 	}
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
 	}
 
 	return Response.json(
-		{ success: true, message: 'Lead received successfully', leadId: lead.id },
+		{ success: true, message: t('received'), leadId: lead.id },
 		{ status: 201 },
 	)
 }

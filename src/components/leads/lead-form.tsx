@@ -2,16 +2,17 @@
 
 import {
 	contactMethods,
-	leadSchema,
+	createLeadSchema,
 	services,
 	type LeadApiResponse,
 	type LeadFieldErrors,
 } from '@/lib/lead-schema'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { z } from 'zod'
+import { useLocale, useTranslations } from 'next-intl'
 
 const fieldClassName =
-	'mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 aria-invalid:border-red-400'
+	'mt-2 min-h-12 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-base text-zinc-100 placeholder:text-zinc-500 transition-colors hover:border-zinc-600 focus-visible:border-teal-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 aria-invalid:border-red-400 disabled:opacity-60 sm:text-sm'
 const labelClassName = 'block text-sm font-medium text-zinc-200'
 
 function FieldError({ id, messages }: { id: string; messages?: string[] }) {
@@ -23,6 +24,13 @@ function FieldError({ id, messages }: { id: string; messages?: string[] }) {
 }
 
 export function LeadForm() {
+	const locale = useLocale()
+	const t = useTranslations('Form')
+	const fields = useTranslations('Fields')
+	const common = useTranslations('Common')
+	const methods = useTranslations('ContactMethods')
+	const serviceLabels = useTranslations('Services')
+	const validation = useTranslations('Validation')
 	const [contactMethod, setContactMethod] = useState('')
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({})
@@ -35,11 +43,13 @@ export function LeadForm() {
 	const feedbackRef = useRef<HTMLDivElement>(null)
 	const initializedAt = useRef<number | null>(null)
 	useEffect(() => { initializedAt.current = performance.now() }, [])
+	useEffect(() => {
+		if (feedback) feedbackRef.current?.focus()
+	}, [feedback])
 
 	function showError(message: string, errors: LeadFieldErrors = {}) {
 		setFieldErrors(errors)
 		setFeedback({ kind: 'error', message })
-		feedbackRef.current?.focus()
 	}
 
 	async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -47,13 +57,13 @@ export function LeadForm() {
 		if (submissionInProgress.current) return
 
 		const form = event.currentTarget
-		const result = leadSchema.safeParse(Object.fromEntries(new FormData(form)))
+		const result = createLeadSchema(validation).safeParse(Object.fromEntries(new FormData(form)))
 		setFeedback(null)
 		setFieldErrors({})
 
 		if (!result.success) {
 			showError(
-				'Please check the highlighted fields.',
+				t('checkFields'),
 				z.flattenError(result.error).fieldErrors,
 			)
 			return
@@ -65,7 +75,7 @@ export function LeadForm() {
 		try {
 			const response = await fetch('/api/leads', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'x-leadflow-locale': locale },
 				body: JSON.stringify({
 					...result.data,
 					website: new FormData(form).get('website'),
@@ -78,7 +88,7 @@ export function LeadForm() {
 				showError(
 					typeof data.message === 'string'
 						? data.message
-						: 'Unable to send your request. Please try again.',
+						: t('sendFailed'),
 					data.success === false ? data.fieldErrors : undefined,
 				)
 				return
@@ -90,7 +100,7 @@ export function LeadForm() {
 			setFeedback({ kind: 'success', message: data.message })
 		} catch {
 			showError(
-				'Unable to send your request. Check your connection and try again.',
+				t('connection'),
 			)
 		} finally {
 			submissionInProgress.current = false
@@ -102,23 +112,23 @@ export function LeadForm() {
 		<form
 			onSubmit={handleSubmit}
 			aria-busy={isSubmitting}
-			className='mt-8 max-w-3xl'
+			className='mt-8 max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5 sm:p-8'
 		>
 			<div aria-hidden='true' className='absolute -left-[10000px] h-px w-px overflow-hidden'>
-				<label htmlFor='lead-website'>Leave this field empty</label>
+				<label htmlFor='lead-website'>{t('honeypot')}</label>
 				<input id='lead-website' name='website' type='text' tabIndex={-1} autoComplete='off' />
 			</div>
 			<p className='mb-6 text-sm text-zinc-400'>
-				Fields marked with * are required.
+				{t('requiredHint')}
 			</p>
 			<fieldset
 				disabled={isSubmitting}
 				className='grid min-w-0 gap-6 sm:grid-cols-2'
 			>
-				<legend className='sr-only'>Your lead request</legend>
+				<legend className='sr-only'>{t('legend')}</legend>
 				<div>
 					<label htmlFor='lead-name' className={labelClassName}>
-						Name *
+						{fields('name')} *
 					</label>
 					<input
 						id='lead-name'
@@ -134,7 +144,7 @@ export function LeadForm() {
 				</div>
 				<div>
 					<label htmlFor='lead-contact-method' className={labelClassName}>
-						Contact method *
+						{fields('contactMethod')} *
 					</label>
 					<select
 						id='lead-contact-method'
@@ -154,11 +164,11 @@ export function LeadForm() {
 						}
 					>
 						<option value='' disabled>
-							Choose a contact method
+							{t('chooseContact')}
 						</option>
 						{contactMethods.map(method => (
 							<option key={method} value={method}>
-								{method}
+								{methods(method)}
 							</option>
 						))}
 					</select>
@@ -169,7 +179,7 @@ export function LeadForm() {
 				</div>
 				<div>
 					<label htmlFor='lead-contact' className={labelClassName}>
-						Contact *
+						{fields('contact')} *
 					</label>
 					<input
 						id='lead-contact'
@@ -181,13 +191,13 @@ export function LeadForm() {
 						aria-describedby={`lead-contact-hint${fieldErrors.contact ? ' lead-contact-error' : ''}`}
 					/>
 					<p id='lead-contact-hint' className='mt-2 text-xs text-zinc-400'>
-						{contactMethod === 'Email' ? 'Enter an email address, for example hello@example.com.' : contactMethod === 'Phone' ? 'Use 7–15 digits, for example +998995633550. Spaces, parentheses and hyphens are accepted.' : contactMethod === 'Telegram' ? 'Use @username or https://t.me/username (5–32 letters, digits or underscores; start with a letter).' : 'Choose a contact method, then enter your contact details.'}
+						{contactMethod === 'Email' ? t('emailHint') : contactMethod === 'Phone' ? t('phoneHint') : contactMethod === 'Telegram' ? t('telegramHint') : t('contactHint')}
 					</p>
 					<FieldError id='lead-contact-error' messages={fieldErrors.contact} />
 				</div>
 				<div>
 					<label htmlFor='lead-service' className={labelClassName}>
-						Service *
+						{fields('service')} *
 					</label>
 					<select
 						id='lead-service'
@@ -201,11 +211,11 @@ export function LeadForm() {
 						}
 					>
 						<option value='' disabled>
-							Choose a service
+							{t('chooseService')}
 						</option>
 						{services.map(service => (
 							<option key={service} value={service}>
-								{service}
+								{serviceLabels(service === 'Web Application' ? 'WebApplication' : service === 'AI Automation' ? 'AIAutomation' : service)}
 							</option>
 						))}
 					</select>
@@ -213,12 +223,12 @@ export function LeadForm() {
 				</div>
 				<div className='sm:col-span-2'>
 					<label htmlFor='lead-budget' className={labelClassName}>
-						Budget <span className='font-normal text-zinc-400'>(optional)</span>
+						{fields('budget')} <span className='font-normal text-zinc-400'>({common('optional')})</span>
 					</label>
 					<input
 						id='lead-budget'
 						name='budget'
-						placeholder='For example: $1,000–$3,000'
+						placeholder={t('budgetPlaceholder')}
 						className={fieldClassName}
 						aria-invalid={Boolean(fieldErrors.budget)}
 						aria-describedby={
@@ -229,8 +239,8 @@ export function LeadForm() {
 				</div>
 				<div className='sm:col-span-2'>
 					<label htmlFor='lead-message' className={labelClassName}>
-						Message{' '}
-						<span className='font-normal text-zinc-400'>(optional)</span>
+						{fields('message')}{' '}
+						<span className='font-normal text-zinc-400'>({common('optional')})</span>
 					</label>
 					<textarea
 						id='lead-message'
@@ -242,7 +252,7 @@ export function LeadForm() {
 						aria-describedby={`lead-message-hint${fieldErrors.message ? ' lead-message-error' : ''}`}
 					/>
 					<p id='lead-message-hint' className='mt-2 text-xs text-zinc-400'>
-						Tell us about your project. Maximum 1000 characters.
+						{t('messageHint')}
 					</p>
 					<FieldError id='lead-message-error' messages={fieldErrors.message} />
 				</div>
@@ -250,24 +260,30 @@ export function LeadForm() {
 			<div
 				ref={feedbackRef}
 				tabIndex={-1}
+				role='status'
 				aria-live='polite'
 				aria-atomic='true'
-				className='mt-6 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300'
+				className={feedback ? `mt-6 flex gap-3 rounded-xl border p-4 text-sm leading-6 ${feedback.kind === 'success' ? 'border-teal-300/30 bg-teal-300/5 text-teal-200' : 'border-red-300/30 bg-red-300/5 text-red-200'}` : 'sr-only'}
 			>
 				{feedback && (
-					<p
-						className={`text-sm ${feedback.kind === 'success' ? 'text-teal-300' : 'text-red-300'}`}
-					>
-						{feedback.message}
-					</p>
+					<>
+						<svg aria-hidden='true' focusable='false' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.75' strokeLinecap='round' strokeLinejoin='round' className='mt-0.5 size-5 shrink-0'>
+							<circle cx='12' cy='12' r='9' />
+							{feedback.kind === 'success' ? <path d='m8 12 3 3 5-6' /> : <path d='M12 7v6m0 4h.01' />}
+						</svg>
+						<div>
+							<p className='font-semibold'>{common(feedback.kind)}</p>
+							<p className='mt-1'>{feedback.message}</p>
+						</div>
+					</>
 				)}
 			</div>
 			<button
 				type='submit'
 				disabled={isSubmitting}
-				className='mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-teal-300 px-6 text-sm font-semibold text-zinc-950 hover:bg-teal-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300 disabled:cursor-wait disabled:opacity-60 sm:w-auto'
+				className='mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-teal-300 px-6 py-3 text-sm font-semibold text-zinc-950 transition-colors hover:bg-teal-200 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-300 disabled:cursor-wait disabled:opacity-60 sm:w-auto'
 			>
-				{isSubmitting ? 'Sending…' : 'Send Request'}
+				{isSubmitting ? t('sending') : t('send')}
 			</button>
 		</form>
 	)

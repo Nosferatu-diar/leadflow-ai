@@ -335,3 +335,42 @@ future improvement before scaling. See Production Security above.
 - [ ] Public lead submission, validation, feedback and database persistence verified.
 - [ ] Telegram verified, including safe failure after persistence.
 - [ ] OpenAI analysis verified when billing is enabled (otherwise explicitly pending).
+
+## Interface languages
+
+The interface supports English (`en`), Russian (`ru`) and Uzbek Latin (`uz`) via
+`next-intl`. `/` redirects to `/en`; legacy `/login` and `/dashboard` redirect to
+English equivalents. Explicit locale URLs always keep their requested language.
+Browser language detection is disabled so unprefixed URLs have a predictable
+English default. API routes and assets remain unprefixed.
+
+Pages and the root layout live under `src/app/[locale]`. `src/proxy.ts` performs
+locale routing only; all authorization stays in the existing server checks.
+`src/i18n/routing.ts` is the locale allowlist, `navigation.ts` provides localized
+links/redirects, and `request.ts` loads one catalog using Next.js root parameters.
+English, Russian and Uzbek catalogs live in `messages/` and must have matching
+keys and ICU placeholders. Server Components use `getTranslations` or server
+hooks; small interactive components use hooks inside `NextIntlClientProvider`.
+Only their needed message namespaces are serialized to the browser.
+
+EN/RU/UZ links preserve the route, query and section anchor with a full navigation.
+Switching language does not preserve an unsent form draft. Browser requests send
+`x-leadflow-locale`; handlers validate it against the locale allowlist and fall
+back to English for missing/unsupported values. Native logout uses an allowlisted
+`locale` query parameter. Neither mechanism grants access or changes input rules.
+The Zod schema factory shares the same rules on browser/server and receives only
+a translation function. Persisted service/status values remain unchanged.
+
+Customer names, contacts, budget text, messages and saved AI-generated prose are
+never translated. Dates are formatted for the interface locale in UTC; stored
+timestamps stay unchanged. AI prompts/output and business-owner Telegram messages
+remain unchanged in English. Server logs, provider/configuration identifiers and
+CLI-only validation diagnostics also stay in English. Login/dashboard retain
+noindex and private/no-store headers on all locale paths. The homepage has
+localized metadata and canonical/hreflang URLs when a real `APP_ORIGIN` is set.
+No schema migration, deployment or live OpenAI test is required for this change.
+
+On this Windows workstation, `.env.local` contains only an additional local
+`SWC_NATIVE_BINDING_CACHE` setting for a private native-loader cache. It resolves
+the config loader's rejection of sandbox-writable cache ancestors. This ignored
+machine-specific setting must not be copied to Netlify/Linux or committed.

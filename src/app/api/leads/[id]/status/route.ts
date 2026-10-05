@@ -1,3 +1,4 @@
+import { getApiTranslations } from '@/i18n/api'
 import { leadIdSchema, statusUpdateSchema } from '@/lib/lead-status'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
@@ -8,23 +9,24 @@ import { readLimitedJson, RequestTooLargeError } from '@/lib/security/read-json'
 export const runtime = 'nodejs'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+	const t = await getApiTranslations(request)
 	const denied = await authorizeAdminMutation(request)
 	if (denied) return denied
 	const { id } = await params
 	if (!leadIdSchema.safeParse(id).success) {
-		return Response.json({ success: false, message: 'Invalid lead ID.' }, { status: 400 })
+		return Response.json({ success: false, message: t('invalidId') }, { status: 400 })
 	}
 
 	let body: unknown
 	try {
 		body = await readLimitedJson(request, 1024)
 	} catch (error) {
-		if (error instanceof RequestTooLargeError) return Response.json({ success: false, message: 'Request is too large.' }, { status: 413 })
-		return Response.json({ success: false, message: 'Send a valid JSON request.' }, { status: 400 })
+		if (error instanceof RequestTooLargeError) return Response.json({ success: false, message: t('tooLarge') }, { status: 413 })
+		return Response.json({ success: false, message: t('json') }, { status: 400 })
 	}
 	const result = statusUpdateSchema.safeParse(body)
 	if (!result.success) {
-		return Response.json({ success: false, message: 'Choose a valid lead status.' }, { status: 400 })
+		return Response.json({ success: false, message: t('status') }, { status: 400 })
 	}
 
 	let lead
@@ -36,12 +38,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 		})
 	} catch (error) {
 		if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-			return Response.json({ success: false, message: 'Lead not found.' }, { status: 404 })
+			return Response.json({ success: false, message: t('notFound') }, { status: 404 })
 		}
 		console.error('Unable to update lead status.')
-		return Response.json({ success: false, message: 'Unable to update the status. Please try again later.' }, { status: 503 })
+		return Response.json({ success: false, message: t('statusFailed') }, { status: 503 })
 	}
 
-	revalidatePath('/dashboard')
+	revalidatePath('/[locale]/dashboard', 'page')
 	return Response.json({ success: true, lead })
 }

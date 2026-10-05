@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import type { ReactNode } from 'react'
 
 type ActionLinkProps = {
@@ -20,7 +20,7 @@ export function ActionLink({
 	return (
 		<Link
 			href={href}
-			className={`inline-flex min-h-12 items-center justify-center rounded-lg border px-6 text-sm font-semibold ${variantClasses}`}
+			className={`inline-flex min-h-12 items-center justify-center rounded-lg border px-5 py-3 text-center text-sm font-semibold leading-5 transition-colors sm:px-6 ${variantClasses}`}
 		>
 			{children}
 		</Link>

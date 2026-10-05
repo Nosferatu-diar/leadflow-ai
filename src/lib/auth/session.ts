@@ -3,7 +3,8 @@ import { createHmac, randomUUID, timingSafeEqual, createHash } from 'node:crypto
 import { compare, truncates } from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+import { redirect } from '@/i18n/navigation'
+import { getLocale } from 'next-intl/server'
 import { getAuthConfig } from './config'
 
 const sessionSeconds = 8 * 60 * 60
@@ -51,7 +52,7 @@ export async function hasAdminSession() {
 }
 
 export async function requireAdmin() {
-	if (!await hasAdminSession()) redirect('/login')
+	if (!await hasAdminSession()) redirect({ href: '/login', locale: await getLocale() })
 }
 
 export async function deleteAdminSession() {
